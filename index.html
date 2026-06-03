@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BOUBA · KIKI — 共感覚タイピング</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0c0a12;
+    --ink2:#15121e;
+    --paper:#f4ede4;
+    --paper-dim:#a59c93;
+    --bouba:#ff8a5c;
+    --bouba2:#ffd29b;
+    --kiki:#62e6ff;
+    --kiki2:#b79bff;
+    --line:rgba(244,237,228,.14);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--ink);color:var(--paper);
+    font-family:"Space Mono",monospace;-webkit-font-smoothing:antialiased}
+  body{
+    background:
+      radial-gradient(120% 80% at 18% 0%, rgba(255,138,92,.10), transparent 55%),
+      radial-gradient(120% 90% at 85% 100%, rgba(98,230,255,.10), transparent 55%),
+      var(--ink);
+  }
+  /* grain */
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;opacity:.05;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  #stage{position:fixed;inset:0}
+  canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  /* HUD */
+  header{position:fixed;top:0;left:0;right:0;z-index:20;display:flex;justify-content:space-between;
+    align-items:flex-start;padding:22px 28px;pointer-events:none}
+  .brand{font-family:"Fraunces",serif;font-weight:300;font-size:26px;letter-spacing:.16em;line-height:1}
+  .brand b{font-weight:600}
+  .brand .b{color:var(--bouba)}
+  .brand .k{color:var(--kiki)}
+  .tag{font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:var(--paper-dim);margin-top:8px}
+  .stats{text-align:right;font-size:11px;letter-spacing:.14em;color:var(--paper-dim);line-height:2}
+  .stats .num{font-family:"Fraunces",serif;font-size:30px;font-weight:600;color:var(--paper);letter-spacing:0}
+  .stats .num.combo{color:var(--bouba2)}
+  .stats .lives{font-size:18px;letter-spacing:.2em}
+
+  /* buffer readout */
+  #buffer{position:fixed;left:50%;bottom:34px;transform:translateX(-50%);z-index:20;
+    font-family:"Fraunces",serif;font-size:34px;letter-spacing:.04em;min-height:46px;
+    text-align:center;pointer-events:none;text-shadow:0 0 30px rgba(0,0,0,.6)}
+  #buffer .done{color:var(--paper)}
+  #buffer .rest{color:rgba(244,237,228,.3)}
+  #footnote{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:20;
+    font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:rgba(165,156,147,.55);pointer-events:none}
+
+  /* mode pill */
+  #mode{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:25;display:flex;
+    border:1px solid var(--line);border-radius:40px;overflow:hidden;background:rgba(12,10,18,.5);backdrop-filter:blur(8px)}
+  #mode button{background:none;border:none;color:var(--paper-dim);font-family:"Space Mono";font-size:10px;
+    letter-spacing:.2em;text-transform:uppercase;padding:9px 18px;cursor:pointer;transition:.25s}
+  #mode button.on{color:var(--ink);background:var(--paper)}
+
+  /* overlay */
+  #intro{position:fixed;inset:0;z-index:40;background:rgba(8,7,12,.86);backdrop-filter:blur(14px);
+    display:flex;align-items:center;justify-content:center;padding:24px;transition:opacity .6s}
+  #intro.hide{opacity:0;pointer-events:none}
+  .card{max-width:640px;text-align:center}
+  .card h1{font-family:"Fraunces",serif;font-weight:300;font-size:clamp(40px,8vw,82px);line-height:.95;letter-spacing:.02em}
+  .card h1 .b{color:var(--bouba);font-style:italic;font-weight:400}
+  .card h1 .k{color:var(--kiki);font-weight:600}
+  .card .sub{font-size:12px;letter-spacing:.26em;text-transform:uppercase;color:var(--paper-dim);margin:18px 0 26px}
+  .card p{font-family:"Space Mono";font-size:13.5px;line-height:1.85;color:#cfc7bd;max-width:520px;margin:0 auto 16px}
+  .card .em{color:var(--paper)}
+  .card .bw{color:var(--bouba2)}
+  .card .kw{color:var(--kiki)}
+  .ref{font-size:10.5px;color:rgba(165,156,147,.7);line-height:1.7;margin-top:22px;border-top:1px solid var(--line);padding-top:18px}
+  .ref a{color:var(--paper-dim)}
+  .play{margin-top:30px;font-family:"Fraunces",serif;font-weight:400;font-size:22px;letter-spacing:.04em;
+    background:var(--paper);color:var(--ink);border:none;border-radius:50px;padding:14px 46px;cursor:pointer;
+    transition:transform .2s, box-shadow .3s;box-shadow:0 0 0 rgba(255,138,92,0)}
+  .play:hover{transform:translateY(-2px);box-shadow:0 14px 40px rgba(255,138,92,.25),0 0 60px rgba(98,230,255,.15)}
+  .hint{margin-top:16px;font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(165,156,147,.6)}
+
+  #toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);z-index:30;
+    font-family:"Fraunces",serif;font-size:64px;font-weight:300;opacity:0;pointer-events:none;transition:.4s}
+  #toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c"></canvas></div>
+
+<header>
+  <div>
+    <div class="brand"><span class="b">Bouba</span> · <span class="k">Kiki</span></div>
+    <div class="tag">cross-modal typing instrument</div>
+  </div>
+  <div class="stats">
+    <div>SCORE&nbsp;&nbsp;<span class="num" id="score">0</span></div>
+    <div>COMBO&nbsp;&nbsp;<span class="num combo" id="combo">×1</span></div>
+    <div class="lives" id="lives">♥ ♥ ♥</div>
+  </div>
+</header>
+
+<div id="mode">
+  <button id="mGame" class="on">play</button>
+  <button id="mFree">instrument</button>
+</div>
+
+<div id="toast"></div>
+<div id="buffer"></div>
+<div id="footnote">round letters → soft · low · curved &nbsp;|&nbsp; sharp letters → bright · high · jagged</div>
+
+<div id="intro">
+  <div class="card">
+    <h1><span class="b">bouba</span> · <span class="k">kiki</span></h1>
+    <div class="sub">言葉 × 認知 × 音</div>
+    <p>丸い図形が浮かべば <span class="bw">柔らかく丸い言葉</span>，尖った図形が来れば
+       <span class="kw">鋭く尖った言葉</span>．その語を打って図形を消す。</p>
+    <p>音は録音ではなく <span class="em">一打ごとにその場で合成</span>される。丸い文字（o・u・m・b・l…）は
+       低く柔らかな正弦波、尖った文字（k・t・i・z・x…）は高く鋭いノイズ混じりの音。
+       <span class="em">打鍵がそのまま音象徴になる。</span></p>
+    <p class="ref">
+      Köhler (1929) の takete／maluma に始まり、Ramachandran &amp; Hubbard (2001) が
+      bouba／kiki と命名した音象徴効果に基づく。丸い形は「ブーバ」、尖った形は「キキ」と
+      命名される傾向は文化を越えて普遍的で、孵化直後のヒヨコにも見られる
+      (Nature <i>Sci. Rep.</i> 2016; bioRxiv 2024)。音と図形のクロスモーダル対応を遊ぶ。
+    </p>
+    <button class="play" id="start">はじめる</button>
+    <div class="hint">type · destroy · listen &nbsp;—&nbsp; Esc で休止</div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+/* ---------- canvas ---------- */
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+let W,H,DPR;
+function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;
+  cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
+addEventListener('resize',resize);resize();
+
+/* ---------- audio engine : the heart ---------- */
+let AC=null, master=null, conv=null;
+function initAudio(){
+  if(AC) return;
+  AC=new (window.AudioContext||window.webkitAudioContext)();
+  master=AC.createGain(); master.gain.value=0.85; master.connect(AC.destination);
+  // gentle reverb so notes bloom into the room
+  conv=AC.createConvolver();
+  const len=AC.sampleRate*1.4, imp=AC.createBuffer(2,len,AC.sampleRate);
+  for(let ch=0;ch<2;ch++){const d=imp.getChannelData(ch);
+    for(let i=0;i<len;i++){d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.6);}}
+  conv.buffer=imp;
+  const wet=AC.createGain(); wet.gain.value=0.22; conv.connect(wet); wet.connect(master);
+  master._wet=wet;
+}
+
+/* roundness 0(spiky)..1(round) per letter — the phonetic core */
+const ROUND={o:1,u:.95,w:.88,m:.9,b:.85,l:.8,n:.72,r:.62,g:.6,a:.66,d:.55,h:.5,
+  y:.46,f:.4,v:.4,e:.34,c:.3,s:.3,p:.26,q:.26,j:.2,x:.16,t:.15,z:.1,k:.08,i:.05};
+/* pentatonic-ish degrees so words sound musical, low for round / high for sharp */
+const SCALE=[0,2,3,5,7,9,10,12]; // semitone offsets
+function midi(n){return 440*Math.pow(2,(n-69)/12);}
+
+function keyTone(letter){
+  if(!AC) return;
+  const r=ROUND[letter]!==undefined?ROUND[letter]:.5;
+  const t=AC.currentTime;
+  // pitch: round ~ low octave, sharp ~ high octave, mapped on a scale
+  const idx=letter.charCodeAt(0)%SCALE.length;
+  const base=48 + Math.round((1-r)*26) + SCALE[idx]; // midi note
+  const freq=midi(base);
+
+  const g=AC.createGain();
+  const filt=AC.createBiquadFilter();
+  filt.type='lowpass';
+  filt.frequency.value= 600 + (1-r)*7000 + r*200; // round = darker
+  filt.Q.value=0.4 + (1-r)*4;
+  g.connect(filt); filt.connect(master); filt.connect(conv); // dry + reverb
+
+  // envelope: round = soft slow, sharp = instant click
+  const atk = r>0.5 ? 0.012+ r*0.02 : 0.0015;
+  const rel = r>0.5 ? 0.28 + r*0.25 : 0.08 + r*0.08;
+  const peak= r>0.5 ? 0.5 : 0.42;
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(peak,t+atk);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+atk+rel);
+
+  // oscillator timbre: round=sine/triangle, sharp=saw + noise burst
+  const o=AC.createOscillator();
+  o.type = r>0.62 ? 'sine' : r>0.36 ? 'triangle' : 'sawtooth';
+  o.frequency.setValueAtTime(freq,t);
+  if(r<0.36){ // sharp letters get a tiny downward chirp = "tick"
+    o.frequency.exponentialRampToValueAtTime(freq*0.82,t+0.05);
+  }
+  o.connect(g); o.start(t); o.stop(t+atk+rel+0.05);
+
+  if(r<0.4){ // noise transient for spiky consonants
+    const nb=AC.createBuffer(1,AC.sampleRate*0.06,AC.sampleRate);
+    const nd=nb.getChannelData(0);
+    for(let i=0;i<nd.length;i++) nd[i]=(Math.random()*2-1)*Math.pow(1-i/nd.length,3);
+    const ns=AC.createBufferSource(); ns.buffer=nb;
+    const ng=AC.createGain(); ng.gain.value=(0.4-r)*0.5;
+    const nf=AC.createBiquadFilter(); nf.type='highpass'; nf.frequency.value=2200;
+    ns.connect(nf); nf.connect(ng); ng.connect(master);
+    ns.start(t); ns.stop(t+0.06);
+  }
+}
+function errTone(){
+  if(!AC) return; const t=AC.currentTime;
+  const o=AC.createOscillator(),g=AC.createGain();
+  o.type='sine';o.frequency.setValueAtTime(150,t);
+  o.frequency.exponentialRampToValueAtTime(70,t+0.14);
+  g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.3,t+0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+0.16);
+  o.connect(g);g.connect(master);o.start(t);o.stop(t+0.18);
+}
+function clearChord(round){ // word complete reward
+  if(!AC) return; const t=AC.currentTime;
+  const notes = round ? [48,52,55,60] : [60,64,67,72,74];
+  notes.forEach((n,i)=>{
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.type= round?'sine':'triangle';
+    o.frequency.value=midi(n);
+    const d= round?0.6:0.3;
+    g.gain.setValueAtTime(0.0001,t+i*0.012);
+    g.gain.exponentialRampToValueAtTime(round?0.26:0.2,t+i*0.012+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+i*0.012+d);
+    o.connect(g);g.connect(master);g.connect(conv);
+    o.start(t+i*0.012);o.stop(t+i*0.012+d+0.05);
+  });
+}
+
+/* ---------- words ---------- */
+const BOUBA=["bloom","moon","womb","lume","loam","mellow","bubble","balloon","mango",
+  "lagoon","mumble","molten","oolong","bonbon","marble","gloom","numb","wobble","mallow","murmur"];
+const KIKI=["spike","zap","tick","zinc","exit","pixel","cricket","static","attack","skeptic",
+  "jacket","kinetic","tactic","zigzag","strict","tweak","kettle","kiki","stick","texture"];
+
+/* ---------- shapes ---------- */
+let shapes=[], particles=[];
+function spawn(){
+  const round=Math.random()<0.5;
+  const word=(round?BOUBA:KIKI)[Math.floor(Math.random()*(round?BOUBA:KIKI).length)];
+  const r=46+word.length*3.5;
+  const x=r+Math.random()*(W-2*r);
+  const seedN=5+Math.floor(Math.random()*4);
+  const offs=[];for(let i=0;i<seedN;i++)offs.push(Math.random()*Math.PI*2);
+  shapes.push({x,y:H+r,r,word,round,typed:0,rot:0,
+    vrot:(Math.random()-0.5)*0.01, vy:-(0.22+Math.random()*0.16+level*0.03),
+    wob:offs, born:performance.now(), dead:false, hue:round?28:190});
+}
+function drawBlob(s,t){
+  ctx.beginPath();
+  const N=64;
+  for(let i=0;i<=N;i++){
+    const a=i/N*Math.PI*2;
+    let rad=s.r;
+    for(let k=0;k<s.wob.length;k++) rad+= Math.sin(a*(k+2)+s.wob[k]+t*0.0006)* (s.r*0.045);
+    const x=Math.cos(a)*rad, y=Math.sin(a)*rad;
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  }
+  ctx.closePath();
+}
+function drawSpike(s,t){
+  const pts=s.wob.length+3;
+  ctx.beginPath();
+  for(let i=0;i<=pts*2;i++){
+    const a=i/(pts*2)*Math.PI*2;
+    const out=i%2===0;
+    let rad= out? s.r : s.r*0.42;
+    rad+= Math.sin(t*0.004+i)* (s.r*0.03);
+    const x=Math.cos(a)*rad,y=Math.sin(a)*rad;
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  }
+  ctx.closePath();
+}
+function shapeColor(s,active){
+  const a=active?1:0.9;
+  if(s.round) return `hsla(${s.hue},90%,${active?68:62}%,${a})`;
+  return `hsla(${s.hue},85%,${active?70:64}%,${a})`;
+}
+
+/* ---------- particles ---------- */
+function burst(s){
+  const n=s.round?26:34;
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, sp=(s.round?1.2:3.4)*(0.5+Math.random());
+    particles.push({x:s.x,y:s.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,
+      life:1, r:s.round?(4+Math.random()*7):(2+Math.random()*4),
+      round:s.round,hue:s.hue,rot:Math.random()*6});
+  }
+}
+
+/* ---------- game state ---------- */
+let score=0,combo=1,lives=3,level=0,running=false,mode='game',active=null,lastSpawn=0;
+const $=(id)=>document.getElementById(id);
+function updHUD(){
+  $('score').textContent=score;
+  $('combo').textContent='×'+combo;
+  $('lives').textContent= lives>0 ? '♥ '.repeat(lives).trim() : '—';
+}
+function toast(txt,color){
+  const el=$('toast');el.textContent=txt;el.style.color=color;el.classList.add('show');
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),700);
+}
+function setBuffer(){
+  const b=$('buffer');
+  if(mode==='free'){b.innerHTML='';return;}
+  if(!active){b.innerHTML='<span class="rest">type…</span>';return;}
+  const w=active.word, d=active.typed;
+  b.innerHTML=`<span class="done">${w.slice(0,d)}</span><span class="rest">${w.slice(d)}</span>`;
+}
+
+/* ---------- input ---------- */
+addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ if(running){running=false;$('intro').classList.remove('hide');} return; }
+  if(!running) return;
+  const k=e.key.toLowerCase();
+  if(k.length!==1 || k<'a' || k>'z') return;
+  e.preventDefault();
+
+  if(mode==='free'){ keyTone(k); freeBurst(k); return; }
+
+  // game mode
+  if(!active){
+    // find lowest shape whose word starts with this letter
+    let cand=null;
+    for(const s of shapes){ if(s.dead) continue;
+      if(s.word[0]===k && (!cand || s.y<cand.y)) cand=s; }
+    if(cand){ active=cand; active.typed=0; }
+  }
+  if(active && active.word[active.typed]===k){
+    keyTone(k); active.typed++;
+    if(active.typed>=active.word.length){
+      clearChord(active.round); burst(active);
+      score+= active.word.length*combo;
+      combo++;
+      toast(active.round?'bloom':'shatter', active.round?'var(--bouba)':'var(--kiki)');
+      active.dead=true; active=null;
+    }
+  } else if(active){
+    errTone(); combo=1; active.typed=0; active=null;
+  }
+  updHUD(); setBuffer();
+});
+
+function freeBurst(k){
+  const r=ROUND[k]!==undefined?ROUND[k]:.5;
+  const round=r>0.5;
+  const s={x:Math.random()*W,y:Math.random()*H,r:30+(1-Math.abs(r-.5)*2)*40+30,
+    round,hue:round?28:190,wob:[1,2,3,4,5].map(()=>Math.random()*6)};
+  burst(s);
+}
+
+/* ---------- loop ---------- */
+function frame(now){
+  ctx.clearRect(0,0,W,H);
+  // faint center guide grid lines
+  if(mode==='game'&&running){
+    if(now-lastSpawn > Math.max(1500-level*80,650)){ spawn(); lastSpawn=now; }
+  }
+  // shapes
+  for(const s of shapes){
+    if(s.dead) continue;
+    s.y+=s.vy; s.rot+=s.vrot;
+    if(s.y< -s.r-10){ // reached top -> miss
+      s.dead=true; if(s===active)active=null;
+      if(mode==='game'){ lives--; combo=1; errTone(); toast('miss','var(--paper-dim)');
+        updHUD(); if(lives<=0) gameOver(); }
+      continue;
+    }
+    const isActive = s===active;
+    ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(s.rot);
+    ctx.shadowBlur= isActive?42:22;
+    ctx.shadowColor= shapeColor(s,true);
+    ctx.fillStyle= shapeColor(s,isActive);
+    s.round?drawBlob(s,now):drawSpike(s,now);
+    ctx.globalAlpha= isActive?0.95:0.8; ctx.fill();
+    ctx.globalAlpha=1; ctx.shadowBlur=0;
+    ctx.restore();
+    // word label
+    ctx.save();
+    ctx.font='600 15px "Space Mono", monospace';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const w=s.word,d=isActive?s.typed:0;
+    const full=ctx.measureText(w).width;
+    let cx=s.x-full/2;
+    ctx.fillStyle= s.round?'#3a1d0e':'#06222b';
+    for(let i=0;i<w.length;i++){
+      const ch=w[i], cw=ctx.measureText(ch).width;
+      ctx.fillStyle= i<d ? '#fff' : (s.round?'rgba(40,18,8,.85)':'rgba(4,30,38,.9)');
+      ctx.fillText(ch,cx+cw/2,s.y);
+      cx+=cw;
+    }
+    ctx.restore();
+  }
+  shapes=shapes.filter(s=>!s.dead || false); // keep dead briefly? no, drop
+  shapes=shapes.filter(s=>!s.dead);
+
+  // particles
+  for(const p of particles){
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.04;p.vx*=0.98;p.life-=0.022;p.rot+=0.1;
+    if(p.life<=0)continue;
+    ctx.save();ctx.translate(p.x,p.y);ctx.globalAlpha=Math.max(p.life,0);
+    ctx.fillStyle=`hsl(${p.hue},90%,65%)`;ctx.shadowBlur=10;ctx.shadowColor=ctx.fillStyle;
+    if(p.round){ctx.beginPath();ctx.arc(0,0,p.r*p.life,0,7);ctx.fill();}
+    else{ctx.rotate(p.rot);ctx.fillRect(-p.r/2,-p.r/2,p.r,p.r*p.life);}
+    ctx.restore();
+  }
+  particles=particles.filter(p=>p.life>0);
+
+  // slow level ramp
+  if(running && mode==='game') level=Math.min(score/300,8);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+function gameOver(){
+  running=false;
+  toast('game over','var(--paper)');
+  setTimeout(()=>{
+    $('intro').classList.remove('hide');
+    $('intro').querySelector('h1').innerHTML=
+      `<span class="b">${score}</span> <span style="font-size:.4em;letter-spacing:.2em">pts</span>`;
+    $('start').textContent='もう一度';
+  },900);
+}
+
+/* ---------- controls ---------- */
+function reset(){score=0;combo=1;lives=3;level=0;shapes=[];particles=[];active=null;lastSpawn=0;updHUD();setBuffer();}
+$('start').addEventListener('click',()=>{
+  initAudio(); if(AC.state==='suspended')AC.resume();
+  $('intro').classList.add('hide');
+  if(!running && lives<=0) reset();
+  if(lives<=0||score===0) reset();
+  running=true; lastSpawn=performance.now();
+});
+$('mGame').addEventListener('click',()=>{mode='game';$('mGame').classList.add('on');$('mFree').classList.remove('on');
+  $('footnote').style.opacity=1;reset();});
+$('mFree').addEventListener('click',()=>{mode='free';$('mFree').classList.add('on');$('mGame').classList.remove('on');
+  shapes=[];active=null;setBuffer();});
+updHUD();setBuffer();
+})();
+</script>
+</body>
+</html>
